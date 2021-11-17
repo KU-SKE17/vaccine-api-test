@@ -3,32 +3,32 @@ import unittest
 import datetime
 import requests
 
-HOST = "https://wcg-apis.herokuapp.com"
-DATABASE_URL = HOST + "/citizen"
+HOST = "https://wcg-apis-test.herokuapp.com"
 URL = HOST + "/registration"
 FEEDBACK = {
-    'success':            'registration success!',
-    'missing_key':        'registration failed: missing some attribute',
-    'registed':           'registration failed: this person already registed',
-    'invalid_id':         'registration failed: invalid citizen ID',
-    'invalid_birthdate':  'registration failed: invalid birth date format',
-    'invalid_age':        'registration failed: not archived minimum age'
+    'success':              'registration success!',
+    'missing_key':          'registration failed: missing some attribute',
+    'registered':           'registration failed: this person already registered',
+    'invalid_id':           'registration failed: invalid citizen ID',
+    'invalid_birthdate':    'registration failed: invalid birth date format',
+    'invalid_age':          'registration failed: not archived minimum age',
+    'other':                'registration failed: something go wrong, please contact admin'
 }
 
 
 class RegistrationTest(unittest.TestCase):
     """
-    Unit tests for Registration API from web wcg-apis.herokuapp.com
+    Unit tests for Registration API from web wcg-apis-test.herokuapp.com
 
     @author Nanthakarn Limkool
     """
     def setUp(self):
-        # del if citizen exist
-        requests.delete(DATABASE_URL, data=self.create_payload())
-
         # default payload to register a person
         self.person = self.create_payload()
 
+        # del if citizen exist
+        requests.delete(URL+'/'+self.person["citizen_id"])
+        
         # same id, but difference name
         self.person_same_id = self.create_payload(firstname='John', lastname='Smith')
 
@@ -39,6 +39,8 @@ class RegistrationTest(unittest.TestCase):
             self.create_payload(lastname=""),
             self.create_payload(birthdate=""),
             self.create_payload(occupation=""),
+            self.create_payload(phone_number=""),
+            self.create_payload(is_risk=""),
             self.create_payload(address="")
         ]
 
@@ -77,7 +79,7 @@ class RegistrationTest(unittest.TestCase):
 
     def tearDown(self):
         # del created citizen
-        requests.delete(DATABASE_URL, data=self.person)
+        requests.delete(URL+'/'+self.person["citizen_id"])
 
     def create_payload(
             self,
@@ -86,6 +88,8 @@ class RegistrationTest(unittest.TestCase):
             lastname="Limkool",
             birthdate="3 Jul 2001",
             occupation="Student",
+            phone_number="0900900990",
+            is_risk="false",
             address="315/5 Phlabphla, Wang Thonglang, Bangkok 10312"):
         """Return new dict of API requested attributes.
 
@@ -95,6 +99,8 @@ class RegistrationTest(unittest.TestCase):
             lastname (str, optional): Lastname of the Citizen, Defaults to "Limkool"
             birthdate (str, optional): Birthdate of the Citizen, Defaults to "3 Jul 2001"
             occupation (str, optional): Occupation of the Citizen, Defaults to "Student"
+            phone_number(str, optional): Phone number of the Citizen, Defaults to "0900900990",
+            is_risk(str, optional): 7 COVID-risks medical conditions status of the Citizen, Defaults to "false",
             address (str, optional): Address of the Citizen, Defaults to "315/5 Phlabphla, Wang Thonglang, Bangkok 10312"
 
         Returns:
@@ -106,6 +112,8 @@ class RegistrationTest(unittest.TestCase):
             'surname': lastname,
             'birth_date': birthdate,
             'occupation': occupation,
+            'phone_number': phone_number,
+            'is_risk': is_risk,
             'address': address
         }
 
@@ -126,7 +134,7 @@ class RegistrationTest(unittest.TestCase):
         # send request
         response = requests.post(URL, data=self.person)
         # check status code
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 201)
         # check feedback
         self.assertEqual(self.get_feedback(response), FEEDBACK['success'])
 
@@ -147,7 +155,7 @@ class RegistrationTest(unittest.TestCase):
         response2 = requests.post(URL, data=self.person)
         # check feedback
         self.assertEqual(self.get_feedback(response1), FEEDBACK['success'])
-        self.assertEqual(self.get_feedback(response2), FEEDBACK['registed'])
+        self.assertEqual(self.get_feedback(response2), FEEDBACK['registered'])
 
     def test_register_exist_citizen_id(self):
         """Test register two persons with the same citizen_id
@@ -157,7 +165,7 @@ class RegistrationTest(unittest.TestCase):
         response2 = requests.post(URL, data=self.person_same_id)
         # check feedback
         self.assertEqual(self.get_feedback(response1), FEEDBACK['success'])
-        self.assertEqual(self.get_feedback(response2), FEEDBACK['registed'])
+        self.assertEqual(self.get_feedback(response2), FEEDBACK['registered'])
 
     def test_register_invalid_citizen_id(self):
         """Test register a person with invalid citizen_id
@@ -177,7 +185,7 @@ class RegistrationTest(unittest.TestCase):
             # check feedback
             self.assertEqual(self.get_feedback(response), FEEDBACK['success'])
             # del the citizen
-            requests.delete(DATABASE_URL, data=self.create_payload())
+            requests.delete(URL+'/'+payload["citizen_id"])
 
     def test_register_invalid_birthdate_formats(self):
         """Test register a person with invalid birthdate formats
